@@ -6,7 +6,7 @@ import { BookOpen, Star, Users, ShoppingCart, ArrowRight, User, Menu } from 'luc
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 
 interface HomeProps {
-  onNavigate: (view: 'store' | 'auth' | 'vendor-auth' | 'vendor-dashboard' | 'admin') => void;
+  onNavigate: (view: 'store' | 'auth' | 'vendor-auth' | 'vendor-dashboard' | 'admin' | 'stripe-setup') => void;
   accessToken: string | null;
   onLogout: () => void;
   onShowAuth: () => void;
@@ -77,6 +77,9 @@ export function Home({ onNavigate, accessToken, onLogout, onShowAuth }: HomeProp
               <Button variant="ghost" onClick={() => onNavigate('vendor-auth')}>
                 Vender Ebooks
               </Button>
+              <Button variant="ghost" onClick={() => onNavigate('stripe-setup')}>
+                ⚙️ Configurar Stripe
+              </Button>
               {accessToken && (
                 <Button variant="ghost" onClick={() => onNavigate('admin')}>
                   Admin
@@ -108,6 +111,9 @@ export function Home({ onNavigate, accessToken, onLogout, onShowAuth }: HomeProp
                   </Button>
                   <Button variant="ghost" onClick={() => onNavigate('vendor-auth')}>
                     Vender Ebooks
+                  </Button>
+                  <Button variant="ghost" onClick={() => onNavigate('stripe-setup')}>
+                    ⚙️ Configurar Stripe
                   </Button>
                   {accessToken && (
                     <Button variant="ghost" onClick={() => onNavigate('admin')}>

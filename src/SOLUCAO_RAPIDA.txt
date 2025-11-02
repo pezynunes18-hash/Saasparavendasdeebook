@@ -1,0 +1,43 @@
+================================================================================
+🚨 SOLUÇÃO RÁPIDA - STRIPE NÃO CONFIGURADO
+================================================================================
+
+PROBLEMA: Vendedores não conseguem conectar com Stripe
+
+⚠️ IMPORTANTE: Esta é a configuração da PLATAFORMA (você)
+              Você NÃO precisa configurar cada vendedor manualmente!
+              Após isso, vendedores conectam sozinhos automaticamente!
+
+SOLUÇÃO (5 minutos):
+
+1️⃣ OBTER SUA CHAVE STRIPE (DA PLATAFORMA)
+   → Vá em: https://dashboard.stripe.com/test/apikeys
+   → Copie a "Secret key" (começa com sk_test_...)
+   → Esta é a SUA chave, não dos vendedores!
+   
+2️⃣ CONFIGURAR NO SUPABASE
+   → Vá em: https://supabase.com/dashboard/project/alhoevnjscrvjxjiekle/settings/functions
+   → Role até "Environment variables"
+   → Clique "Add new secret"
+   → Nome: STRIPE_SECRET_KEY
+   → Valor: [cole a chave aqui]
+   → Clique "Apply"
+   
+3️⃣ TESTAR
+   → Aguarde 20 segundos
+   → Recarregue o painel do vendedor
+   → ✅ Pronto! Vendedores podem conectar suas contas agora!
+   
+🎉 RESULTADO:
+   → Botão "Conectar Stripe" fica habilitado
+   → Vendedores conectam SUAS PRÓPRIAS contas automaticamente
+   → Você não precisa fazer mais nada!
+
+================================================================================
+IMPORTANTE:
+- Use a chave de TESTE (sk_test_...) para desenvolvimento
+- Use a chave LIVE (sk_live_...) apenas em produção
+- NUNCA compartilhe sua chave secreta
+================================================================================
+
+Dúvidas? Clique em "⚙️ Configurar Stripe" no menu do app!

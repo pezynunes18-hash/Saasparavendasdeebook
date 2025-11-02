@@ -66,13 +66,32 @@ export function VendorDashboard({ accessToken, onLogout }: VendorDashboardProps)
   const [uploadingFile, setUploadingFile] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [stripeConfigured, setStripeConfigured] = useState(true);
 
   useEffect(() => {
     loadVendorProfile();
     loadEbooks();
     loadSales();
     loadBalance();
+    checkStripeStatus();
   }, []);
+
+  const checkStripeStatus = async () => {
+    try {
+      const { projectId } = await import('../utils/supabase/info');
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-b50138d4/stripe-status`
+      );
+      const data = await response.json();
+      setStripeConfigured(data.configured);
+      
+      if (!data.configured) {
+        console.warn('Stripe not configured:', data.message);
+      }
+    } catch (error) {
+      console.error('Failed to check Stripe status:', error);
+    }
+  };
 
   const loadVendorProfile = async () => {
     try {
@@ -163,27 +182,44 @@ export function VendorDashboard({ accessToken, onLogout }: VendorDashboardProps)
   };
 
   const handleConnectStripe = async () => {
+    toast.loading('Criando link de conexão Stripe...');
+    
     try {
       const { projectId } = await import('../utils/supabase/info');
+      
+      console.log('Requesting Stripe onboarding...');
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-b50138d4/vendor-onboarding`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${accessToken}`
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
           }
         }
       );
 
       const data = await response.json();
+      console.log('Stripe onboarding response:', data);
+      
+      toast.dismiss();
+
       if (response.ok && data.url) {
+        toast.success('Abrindo página de conexão Stripe...');
         window.open(data.url, '_blank');
+        
+        // Reload vendor profile after some time
+        setTimeout(() => {
+          loadVendorProfile();
+        }, 3000);
       } else {
-        toast.error(data.error || 'Failed to create onboarding link');
+        console.error('Stripe onboarding error:', data);
+        toast.error(data.error || 'Falha ao criar link de conexão');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to connect Stripe:', error);
-      toast.error('Failed to connect Stripe account');
+      toast.dismiss();
+      toast.error(error.message || 'Erro ao conectar conta Stripe');
     }
   };
 
@@ -368,6 +404,65 @@ export function VendorDashboard({ accessToken, onLogout }: VendorDashboardProps)
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Stripe Configuration Alert */}
+        {!stripeConfigured && (
+          <Alert className="mb-6 bg-red-50 border-red-200">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            <AlertTitle className="text-red-900 text-lg">⚠️ AÇÃO NECESSÁRIA: Stripe Não Configurado</AlertTitle>
+            <AlertDescription>
+              <p className="text-red-800 mb-3">
+                O sistema de pagamentos está desabilitado. O <strong>administrador da plataforma</strong> precisa 
+                configurar a chave da plataforma no Supabase (configuração única).
+                <br />
+                <strong>Você NÃO precisa fornecer SUA chave manualmente!</strong> Após a configuração,
+                você só clica em "Conectar Stripe" e tudo é automático.
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => {
+                    const url = 'https://supabase.com/dashboard/project/alhoevnjscrvjxjiekle/settings/functions';
+                    window.open(url, '_blank');
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Ir para Supabase Settings
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-red-300 text-red-700 hover:bg-red-100"
+                  onClick={() => {
+                    window.open('https://dashboard.stripe.com/test/apikeys', '_blank');
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Obter Chave do Stripe
+                </Button>
+              </div>
+              <details className="mt-3">
+                <summary className="text-sm font-medium text-red-900 cursor-pointer hover:underline">
+                  📋 Instruções para o administrador
+                </summary>
+                <div className="text-sm text-red-800 mt-2 space-y-2">
+                  <p className="font-medium">O administrador deve:</p>
+                  <ol className="ml-4 list-decimal space-y-1">
+                    <li>Obter a chave da <strong>PLATAFORMA</strong> do Stripe (sk_test_...)</li>
+                    <li>Ir em Supabase → Settings → Edge Functions</li>
+                    <li>Adicionar: Nome: <code className="bg-red-100 px-1">STRIPE_SECRET_KEY</code></li>
+                    <li>Colar o valor e salvar</li>
+                    <li>Aguardar 20 segundos</li>
+                  </ol>
+                  <p className="font-medium mt-2 text-green-800">
+                    ✅ Depois você só precisa clicar em "Conectar Stripe" (automático!)
+                  </p>
+                </div>
+              </details>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Status Alerts */}
         {vendor.status === 'pending' && (
           <Alert className="mb-6">
@@ -393,12 +488,40 @@ export function VendorDashboard({ accessToken, onLogout }: VendorDashboardProps)
           <Alert className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Conecte sua Conta Stripe</AlertTitle>
-            <AlertDescription className="flex items-center justify-between">
-              <span>Para receber pagamentos, você precisa conectar sua conta Stripe.</span>
-              <Button onClick={handleConnectStripe} size="sm">
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Conectar Stripe
-              </Button>
+            <AlertDescription>
+              <div className="flex items-center justify-between mb-2">
+                <span>
+                  Para receber pagamentos, clique no botão abaixo. Sua conta Stripe será 
+                  criada automaticamente (você não precisa fornecer chaves manualmente!).
+                </span>
+                <Button 
+                  onClick={handleConnectStripe} 
+                  size="sm"
+                  disabled={!stripeConfigured}
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Conectar Stripe
+                </Button>
+              </div>
+              {!stripeConfigured && (
+                <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded">
+                  <p className="text-sm font-medium text-orange-900 mb-2">
+                    ⚠️ A plataforma ainda não está configurada. Entre em contato com o administrador.
+                  </p>
+                  <p className="text-xs text-orange-700 mb-2">
+                    O administrador precisa adicionar a chave da <strong>PLATAFORMA</strong> no Supabase (configuração única).
+                    Depois você poderá conectar sua conta automaticamente!
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-orange-700 border-orange-300 hover:bg-orange-100"
+                    onClick={() => window.open('/COMO_CONFIGURAR_STRIPE.md', '_blank')}
+                  >
+                    📖 Ver Guia para Administrador
+                  </Button>
+                </div>
+              )}
             </AlertDescription>
           </Alert>
         )}

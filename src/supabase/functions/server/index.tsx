@@ -138,49 +138,92 @@ app.get('/make-server-b50138d4/vendor-profile', async (c) => {
 // Stripe Connect Onboarding
 app.post('/make-server-b50138d4/vendor-onboarding', async (c) => {
   try {
+    console.log('=== Stripe Onboarding Request ===');
+    
     const user = await verifyUser(c.req.raw);
-    if (!user) return c.json({ error: 'Unauthorized' }, 401);
+    if (!user) {
+      console.log('Unauthorized user');
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    console.log('User ID:', user.id);
 
     const vendor = await kv.get(`vendor:${user.id}`);
     if (!vendor) {
+      console.log('Not a vendor');
       return c.json({ error: 'Not a vendor' }, 404);
     }
+    console.log('Vendor status:', vendor.status);
+    console.log('Vendor email:', vendor.email);
 
     if (vendor.status !== 'approved') {
-      return c.json({ error: 'Vendor not approved yet' }, 403);
+      console.log('Vendor not approved yet');
+      return c.json({ error: 'Vendedor ainda não aprovado. Aguarde a aprovação do administrador.' }, 403);
     }
+
+    // Check if Stripe is configured
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    if (!stripeKey || stripeKey === '') {
+      console.log('Stripe not configured');
+      return c.json({ error: 'Stripe não configurado. Configure a chave STRIPE_SECRET_KEY.' }, 500);
+    }
+    console.log('Stripe configured');
 
     // Create Stripe Connect account if doesn't exist
     let stripeAccountId = vendor.stripeAccountId;
 
     if (!stripeAccountId) {
-      const account = await stripe.accounts.create({
-        type: 'express',
-        email: vendor.email,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-        business_type: 'individual',
-      });
+      console.log('Creating new Stripe Connect account...');
+      try {
+        const account = await stripe.accounts.create({
+          type: 'express',
+          email: vendor.email,
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
+          business_type: 'individual',
+        });
 
-      stripeAccountId = account.id;
-      vendor.stripeAccountId = stripeAccountId;
-      await kv.set(`vendor:${user.id}`, vendor);
+        stripeAccountId = account.id;
+        vendor.stripeAccountId = stripeAccountId;
+        await kv.set(`vendor:${user.id}`, vendor);
+        console.log('Stripe account created:', stripeAccountId);
+      } catch (stripeError: any) {
+        console.error('Stripe account creation error:', stripeError);
+        return c.json({ 
+          error: `Erro ao criar conta Stripe: ${stripeError.message}` 
+        }, 500);
+      }
+    } else {
+      console.log('Using existing Stripe account:', stripeAccountId);
     }
 
     // Create account link for onboarding
-    const accountLink = await stripe.accountLinks.create({
-      account: stripeAccountId,
-      refresh_url: `${c.req.header('origin') || 'http://localhost:5173'}/vendor-dashboard`,
-      return_url: `${c.req.header('origin') || 'http://localhost:5173'}/vendor-dashboard`,
-      type: 'account_onboarding',
-    });
+    console.log('Creating account link...');
+    const origin = c.req.header('origin') || 'http://localhost:5173';
+    console.log('Origin:', origin);
+    
+    try {
+      const accountLink = await stripe.accountLinks.create({
+        account: stripeAccountId,
+        refresh_url: `${origin}/vendor-dashboard`,
+        return_url: `${origin}/vendor-dashboard`,
+        type: 'account_onboarding',
+      });
 
-    return c.json({ url: accountLink.url });
+      console.log('Account link created successfully');
+      return c.json({ url: accountLink.url });
+    } catch (linkError: any) {
+      console.error('Account link creation error:', linkError);
+      return c.json({ 
+        error: `Erro ao criar link de onboarding: ${linkError.message}` 
+      }, 500);
+    }
   } catch (error: any) {
-    console.log('Vendor onboarding error:', error);
-    return c.json({ error: `Failed to create onboarding link: ${error.message}` }, 500);
+    console.error('Vendor onboarding error:', error);
+    return c.json({ 
+      error: `Falha ao criar link de conexão: ${error.message}` 
+    }, 500);
   }
 });
 

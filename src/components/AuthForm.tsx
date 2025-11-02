@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 interface AuthFormProps {
-  onAuthSuccess: (accessToken: string, userId: string) => void;
+  onAuthSuccess: (accessToken: string, userId: string, email: string) => void;
 }
 
 export function AuthForm({ onAuthSuccess }: AuthFormProps) {
@@ -56,7 +56,7 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
 
       if (signInError) throw signInError;
 
-      onAuthSuccess(signInData.session.access_token, signInData.user.id);
+      onAuthSuccess(signInData.session.access_token, signInData.user.id, signInData.user.email!);
     } catch (err: any) {
       console.error('Signup error:', err);
       setError(err.message || 'Signup failed');
@@ -85,7 +85,7 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
 
       if (error) throw error;
 
-      onAuthSuccess(data.session.access_token, data.user.id);
+      onAuthSuccess(data.session.access_token, data.user.id, data.user.email!);
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'Login failed');
